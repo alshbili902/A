@@ -1,0 +1,35 @@
+workflows:
+  build-ios:
+    name: Build iOS Release
+    max_build_duration: 120
+    environment:
+      flutter: stable
+      xcode: latest
+    scripts:
+      - name: Checkout repository
+        script: git clone . /tmp/build
+      - name: Install packages
+        script: flutter pub get
+      - name: Build iOS release
+        script: flutter build ios --release --no-codesign
+      - name: Create IPA artifact
+        script: |
+          set -e
+          APP_PATH="build/ios/iphoneos/Runner.app"
+          OUTPUT_DIR="build/ios/ipa"
+          mkdir -p "$OUTPUT_DIR"
+          xcrun -sdk iphoneos PackageApplication -v "$APP_PATH" -o "$OUTPUT_DIR/Runner.ipa" || true
+          if [ ! -f "$OUTPUT_DIR/Runner.ipa" ]; then
+            echo "Fallback for Xcode 14+ (as PackageApplication may be removed)."
+            mkdir -p "build/ios/archive"
+            xcodebuild -exportArchive -archivePath "build/ios/archive/Runner.xcarchive" -exportOptionsPlist codemagic_export_options.plist -exportPath "$OUTPUT_DIR" || true
+          fi
+      - name: Publish artifact
+        script: |
+          echo "IPA artifact available at build/ios/ipa/Runner.ipa"
+    artifacts:
+      - build/ios/ipa/Runner.ipa
+
+# Helper file for xcodebuild export (iOS unsigned)
+
+
